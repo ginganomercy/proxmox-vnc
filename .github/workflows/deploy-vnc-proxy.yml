@@ -110,4 +110,4 @@ jobs:
           key: ${{ secrets.SSH_PRIVATE_KEY }}
           script: |
             docker pull ${{ env.IMAGE_NAME }}:latest
-            docker service update --image ${{ env.IMAGE_NAME }}:latest --force cloud-dashboard_vnc_proxy
+            docker service update --image ${{ env.IMAGE_NAME }}:latest --force cloud-proxy_vnc
