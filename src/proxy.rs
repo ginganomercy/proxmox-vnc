@@ -94,9 +94,9 @@ async fn handle_socket(mut client_ws: WebSocket, node: String, vmid: String, con
         while let Some(Ok(msg)) = client_rx.next().await {
             let t_msg = match msg {
                 Message::Text(t) => TungsteniteMessage::Text(t.to_string().into()),
-                Message::Binary(b) => TungsteniteMessage::Binary(b.into()),
-                Message::Ping(p) => TungsteniteMessage::Ping(p.into()),
-                Message::Pong(p) => TungsteniteMessage::Pong(p.into()),
+                Message::Binary(b) => TungsteniteMessage::Binary(b),
+                Message::Ping(p) => TungsteniteMessage::Ping(p),
+                Message::Pong(p) => TungsteniteMessage::Pong(p),
                 Message::Close(_) => break,
             };
             if proxmox_tx.send(t_msg).await.is_err() {
@@ -109,9 +109,9 @@ async fn handle_socket(mut client_ws: WebSocket, node: String, vmid: String, con
         while let Some(Ok(msg)) = proxmox_rx.next().await {
             let axum_msg = match msg {
                 TungsteniteMessage::Text(t) => Message::Text(t.to_string().into()),
-                TungsteniteMessage::Binary(b) => Message::Binary(b.into()),
-                TungsteniteMessage::Ping(p) => Message::Ping(p.into()),
-                TungsteniteMessage::Pong(p) => Message::Pong(p.into()),
+                TungsteniteMessage::Binary(b) => Message::Binary(b),
+                TungsteniteMessage::Ping(p) => Message::Ping(p),
+                TungsteniteMessage::Pong(p) => Message::Pong(p),
                 TungsteniteMessage::Close(_) => break,
                 TungsteniteMessage::Frame(_) => continue,
             };
