@@ -28,7 +28,7 @@ async fn vnc_handler(
 ) -> impl IntoResponse {
     // 1. Extract JWT Token from Sec-WebSocket-Protocol header or Query
     let mut token = String::new();
-    
+
     if let Some(protocol_header) = headers.get("Sec-WebSocket-Protocol") {
         if let Ok(protocol_str) = protocol_header.to_str() {
             let parts: Vec<&str> = protocol_str.split(',').map(|s| s.trim()).collect();
