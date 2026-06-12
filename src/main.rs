@@ -6,7 +6,6 @@ mod proxy;
 use std::sync::Arc;
 use tokio::net::TcpListener;
 
-
 #[tokio::main]
 async fn main() {
     tracing_subscriber::fmt::init();
