@@ -26,6 +26,18 @@ async fn vnc_handler(
     Path((node, vmid)): Path<(String, String)>,
     State(config): State<Arc<Config>>,
 ) -> impl IntoResponse {
+    // 0. Prevent Path Traversal
+    if !node.chars().all(|c| c.is_ascii_alphanumeric() || c == '-')
+        || !vmid.chars().all(|c| c.is_ascii_digit())
+    {
+        return axum::response::Response::builder()
+            .status(400)
+            .body(axum::body::Body::from(
+                "Invalid parameter format (potential path traversal detected)",
+            ))
+            .unwrap();
+    }
+
     // 1. Extract JWT Token from Sec-WebSocket-Protocol header or Query
     let mut token = String::new();
 
