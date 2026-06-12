@@ -6,7 +6,7 @@ use axum::{
     routing::get,
 };
 use futures_util::{SinkExt, StreamExt};
-use serde::Deserialize;
+use std::borrow::Cow;
 use std::sync::Arc;
 use tokio_tungstenite::{connect_async, tungstenite::protocol::Message as TungsteniteMessage};
 
@@ -47,7 +47,7 @@ async fn vnc_handler(
     }
 
     // 3. Upgrade to WebSocket, responding with the accepted subprotocol
-    ws.protocols(["jwt", &token])
+    ws.protocols([Cow::Borrowed("jwt"), Cow::Owned(token)])
         .on_upgrade(move |socket| handle_socket(socket, node, vmid, config))
 }
 
