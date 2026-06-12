@@ -1,7 +1,7 @@
 use axum::extract::ws::{Message, WebSocket, WebSocketUpgrade};
 use axum::{
     Router,
-    extract::{Path, Query, State},
+    extract::{Path, State},
     response::IntoResponse,
     routing::get,
 };
@@ -14,11 +14,6 @@ use crate::auth::validate_jwt;
 use crate::config::Config;
 use crate::proxmox::get_vnc_ticket;
 
-#[derive(Deserialize)]
-pub struct VncQuery {
-    token: String,
-}
-
 pub fn router(config: Arc<Config>) -> Router {
     Router::new()
         .route("/console/{node}/{vmid}", get(vnc_handler))
@@ -27,20 +22,33 @@ pub fn router(config: Arc<Config>) -> Router {
 
 async fn vnc_handler(
     ws: WebSocketUpgrade,
+    headers: axum::http::HeaderMap,
     Path((node, vmid)): Path<(String, String)>,
-    Query(query): Query<VncQuery>,
     State(config): State<Arc<Config>>,
 ) -> impl IntoResponse {
-    // 1. Validate JWT Token
-    if validate_jwt(&query.token, &config.jwt_secret).is_none() {
+    // 1. Extract JWT Token from Sec-WebSocket-Protocol header or Query
+    let mut token = String::new();
+    
+    if let Some(protocol_header) = headers.get("Sec-WebSocket-Protocol") {
+        if let Ok(protocol_str) = protocol_header.to_str() {
+            let parts: Vec<&str> = protocol_str.split(',').map(|s| s.trim()).collect();
+            if parts.len() == 2 && parts[0] == "jwt" {
+                token = parts[1].to_string();
+            }
+        }
+    }
+
+    // 2. Validate JWT Token
+    if token.is_empty() || validate_jwt(&token, &config.jwt_secret).is_none() {
         return axum::response::Response::builder()
             .status(401)
             .body(axum::body::Body::from("Unauthorized"))
             .unwrap();
     }
 
-    // 2. Upgrade to WebSocket
-    ws.on_upgrade(move |socket| handle_socket(socket, node, vmid, config))
+    // 3. Upgrade to WebSocket, responding with the accepted subprotocol
+    ws.protocols(["jwt", &token])
+        .on_upgrade(move |socket| handle_socket(socket, node, vmid, config))
 }
 
 async fn handle_socket(mut client_ws: WebSocket, node: String, vmid: String, config: Arc<Config>) {
