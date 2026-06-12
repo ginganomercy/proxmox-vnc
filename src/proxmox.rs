@@ -21,7 +21,8 @@ pub async fn get_vnc_ticket(
 ) -> Result<VncTicketData, String> {
     let client = Client::builder()
         .danger_accept_invalid_certs(true) // Ignore self-signed Proxmox certs
-        .build().map_err(|e| e.to_string())?;
+        .build()
+        .map_err(|e| e.to_string())?;
 
     let endpoint = format!("{}/nodes/{}/qemu/{}/vncproxy", url, node, vmid);
     let auth_header = format!("PVEAPIToken={}={}", token_id, token_secret);
@@ -30,7 +31,8 @@ pub async fn get_vnc_ticket(
         .post(&endpoint)
         .header("Authorization", auth_header)
         .send()
-        .await.map_err(|e| e.to_string())?;
+        .await
+        .map_err(|e| e.to_string())?;
 
     if !res.status().is_success() {
         return Err(format!("Proxmox API Error: {}", res.status()));

@@ -1,10 +1,10 @@
+use axum::extract::ws::{Message, WebSocket, WebSocketUpgrade};
 use axum::{
+    Router,
     extract::{Path, Query, State},
     response::IntoResponse,
     routing::get,
-    Router,
 };
-use axum::extract::ws::{Message, WebSocket, WebSocketUpgrade};
 use futures_util::{SinkExt, StreamExt};
 use serde::Deserialize;
 use std::sync::Arc;
@@ -45,7 +45,15 @@ async fn vnc_handler(
 
 async fn handle_socket(mut client_ws: WebSocket, node: String, vmid: String, config: Arc<Config>) {
     // 3. Request VNC Ticket from Proxmox
-    let ticket_data = match get_vnc_ticket(&config.proxmox_url, &config.proxmox_token_id, &config.proxmox_token_secret, &node, &vmid).await {
+    let ticket_data = match get_vnc_ticket(
+        &config.proxmox_url,
+        &config.proxmox_token_id,
+        &config.proxmox_token_secret,
+        &node,
+        &vmid,
+    )
+    .await
+    {
         Ok(data) => data,
         Err(e) => {
             eprintln!("Failed to get VNC ticket: {}", e);
@@ -117,6 +125,6 @@ async fn handle_socket(mut client_ws: WebSocket, node: String, vmid: String, con
         _ = client_to_proxmox => (),
         _ = proxmox_to_client => (),
     }
-    
+
     println!("VNC Proxy closed for VM {}", vmid);
 }
