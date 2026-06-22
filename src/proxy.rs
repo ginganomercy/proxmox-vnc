@@ -8,7 +8,8 @@ use axum::{
 use futures_util::{SinkExt, StreamExt};
 use std::borrow::Cow;
 use std::sync::Arc;
-use tokio_tungstenite::{connect_async, tungstenite::protocol::Message as TungsteniteMessage};
+use tokio_tungstenite::{tungstenite::protocol::Message as TungsteniteMessage, Connector};
+use native_tls::TlsConnector;
 
 use crate::auth::validate_jwt;
 use crate::config::Config;
@@ -93,10 +94,15 @@ async fn handle_socket(mut client_ws: WebSocket, node: String, vmid: String, con
         urlencoding::encode(&ticket_data.ticket)
     );
 
-    // 5. Connect to Proxmox WebSocket (Ignoring Certs is tricky in Rust Tungstenite, need to configure TLS)
-    // For simplicity, we use native-tls with danger_accept_invalid_certs if required, but tokio-tungstenite needs a custom connector.
-    // Let's use the default connect_async first.
-    let (proxmox_ws, _) = match connect_async(&wss_url).await {
+    // 5. Connect to Proxmox WebSocket with Custom TLS Connector (Allow Invalid/Self-Signed Certs)
+    let native_connector = TlsConnector::builder()
+        .danger_accept_invalid_certs(true)
+        .danger_accept_invalid_hostnames(true)
+        .build()
+        .unwrap();
+    let connector = Connector::NativeTls(native_connector.into());
+
+    let (proxmox_ws, _) = match tokio_tungstenite::connect_async_tls_with_config(&wss_url, None, false, Some(connector)).await {
         Ok(ws) => ws,
         Err(e) => {
             eprintln!("Failed to connect to Proxmox WS: {}", e);
