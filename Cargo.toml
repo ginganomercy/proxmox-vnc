@@ -7,7 +7,7 @@ edition = "2024"
 axum = { version = "0.8.9", features = ["ws"] }
 dotenvy = "0.15.7"
 futures-util = "0.3.32"
-jsonwebtoken = "10.4.0"
+jsonwebtoken = { version = "10.4.0", features = ["rust_crypto"] }
 native-tls = { version = "0.2.18", features = ["vendored"] }
 reqwest = { version = "0.13.4", features = ["json", "rustls"] }
 serde = { version = "1.0.228", features = ["derive"] }
