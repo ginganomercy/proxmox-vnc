@@ -6,10 +6,10 @@ use axum::{
     routing::get,
 };
 use futures_util::{SinkExt, StreamExt};
+use native_tls::TlsConnector;
 use std::borrow::Cow;
 use std::sync::Arc;
-use tokio_tungstenite::{tungstenite::protocol::Message as TungsteniteMessage, Connector};
-use native_tls::TlsConnector;
+use tokio_tungstenite::{Connector, tungstenite::protocol::Message as TungsteniteMessage};
 
 use crate::auth::validate_jwt;
 use crate::config::Config;
@@ -100,9 +100,16 @@ async fn handle_socket(mut client_ws: WebSocket, node: String, vmid: String, con
         .danger_accept_invalid_hostnames(true)
         .build()
         .unwrap();
-    let connector = Connector::NativeTls(native_connector.into());
+    let connector = Connector::NativeTls(native_connector);
 
-    let (proxmox_ws, _) = match tokio_tungstenite::connect_async_tls_with_config(&wss_url, None, false, Some(connector)).await {
+    let (proxmox_ws, _) = match tokio_tungstenite::connect_async_tls_with_config(
+        &wss_url,
+        None,
+        false,
+        Some(connector),
+    )
+    .await
+    {
         Ok(ws) => ws,
         Err(e) => {
             eprintln!("Failed to connect to Proxmox WS: {}", e);
