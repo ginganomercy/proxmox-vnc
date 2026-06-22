@@ -13,7 +13,12 @@ use tokio_tungstenite::{Connector, tungstenite::protocol::Message as Tungstenite
 
 use crate::auth::validate_jwt;
 use crate::config::Config;
-use crate::proxmox::get_vnc_ticket;
+
+#[derive(serde::Deserialize)]
+pub struct VncQuery {
+    pub port: String,
+    pub vncticket: String,
+}
 
 pub fn router(config: Arc<Config>) -> Router {
     Router::new()
@@ -25,6 +30,7 @@ async fn vnc_handler(
     ws: WebSocketUpgrade,
     headers: axum::http::HeaderMap,
     Path((node, vmid)): Path<(String, String)>,
+    axum::extract::Query(query): axum::extract::Query<VncQuery>,
     State(config): State<Arc<Config>>,
 ) -> impl IntoResponse {
     // 0. Prevent Path Traversal
@@ -62,36 +68,18 @@ async fn vnc_handler(
 
     // 3. Upgrade to WebSocket, responding with the accepted subprotocol
     ws.protocols([Cow::Borrowed("jwt"), Cow::Owned(token)])
-        .on_upgrade(move |socket| handle_socket(socket, node, vmid, config))
+        .on_upgrade(move |socket| handle_socket(socket, node, vmid, query, config))
 }
 
-async fn handle_socket(mut client_ws: WebSocket, node: String, vmid: String, config: Arc<Config>) {
-    // 3. Request VNC Ticket from Proxmox
-    let ticket_data = match get_vnc_ticket(
-        &config.proxmox_url,
-        &config.proxmox_token_id,
-        &config.proxmox_token_secret,
-        &node,
-        &vmid,
-    )
-    .await
-    {
-        Ok(data) => data,
-        Err(e) => {
-            eprintln!("Failed to get VNC ticket: {}", e);
-            let _ = client_ws.close().await;
-            return;
-        }
-    };
-
+async fn handle_socket(mut client_ws: WebSocket, node: String, vmid: String, query: VncQuery, config: Arc<Config>) {
     // 4. Construct Proxmox WebSocket URL
     let wss_url = format!(
         "{}/nodes/{}/qemu/{}/vncwebsocket?port={}&vncticket={}",
         config.proxmox_url.replace("http", "ws"),
         node,
         vmid,
-        ticket_data.port,
-        urlencoding::encode(&ticket_data.ticket)
+        query.port,
+        urlencoding::encode(&query.vncticket)
     );
 
     // 5. Connect to Proxmox WebSocket with Custom TLS Connector (Allow Invalid/Self-Signed Certs)
