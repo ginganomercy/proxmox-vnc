@@ -102,20 +102,25 @@ async fn handle_socket(mut client_ws: WebSocket, node: String, vmid: String, con
         .unwrap();
     let connector = Connector::NativeTls(native_connector);
 
-    let mut request = match tokio_tungstenite::tungstenite::client::IntoClientRequest::into_client_request(wss_url) {
-        Ok(req) => req,
-        Err(e) => {
-            eprintln!("Invalid WS URL: {}", e);
-            let _ = client_ws.close().await;
-            return;
-        }
-    };
-    
-    let auth_val = format!("PVEAPIToken={}={}", config.proxmox_token_id, config.proxmox_token_secret);
-    request.headers_mut().insert(
-        "Authorization",
-        auth_val.parse().unwrap(),
+    let mut request =
+        match tokio_tungstenite::tungstenite::client::IntoClientRequest::into_client_request(
+            wss_url,
+        ) {
+            Ok(req) => req,
+            Err(e) => {
+                eprintln!("Invalid WS URL: {}", e);
+                let _ = client_ws.close().await;
+                return;
+            }
+        };
+
+    let auth_val = format!(
+        "PVEAPIToken={}={}",
+        config.proxmox_token_id, config.proxmox_token_secret
     );
+    request
+        .headers_mut()
+        .insert("Authorization", auth_val.parse().unwrap());
 
     let (proxmox_ws, _) = match tokio_tungstenite::connect_async_tls_with_config(
         request,
@@ -128,7 +133,11 @@ async fn handle_socket(mut client_ws: WebSocket, node: String, vmid: String, con
         Ok(ws) => ws,
         Err(e) => {
             eprintln!("Failed to connect to Proxmox WS: {}", e);
-            let _ = client_ws.send(axum::extract::ws::Message::Text(format!("Failed to connect to Proxmox: {}", e).into())).await;
+            let _ = client_ws
+                .send(axum::extract::ws::Message::Text(
+                    format!("Failed to connect to Proxmox: {}", e).into(),
+                ))
+                .await;
             let _ = client_ws.close().await;
             return;
         }
