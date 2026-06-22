@@ -1,7 +1,7 @@
 # Build Stage
 FROM rust:alpine AS build
 
-RUN apk add --no-cache musl-dev gcc
+RUN apk add --no-cache musl-dev gcc make perl
 
 WORKDIR /usr/src/app
 
