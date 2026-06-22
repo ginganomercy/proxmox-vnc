@@ -3,7 +3,7 @@ use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct Claims {
-    pub id: i64,
+    pub id: String,
     pub username: String,
     pub role: String,
     pub exp: usize,
