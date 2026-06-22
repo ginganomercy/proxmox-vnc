@@ -1,6 +1,5 @@
 mod auth;
 mod config;
-mod proxmox;
 mod proxy;
 
 use std::sync::Arc;

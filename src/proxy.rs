@@ -71,7 +71,13 @@ async fn vnc_handler(
         .on_upgrade(move |socket| handle_socket(socket, node, vmid, query, config))
 }
 
-async fn handle_socket(mut client_ws: WebSocket, node: String, vmid: String, query: VncQuery, config: Arc<Config>) {
+async fn handle_socket(
+    mut client_ws: WebSocket,
+    node: String,
+    vmid: String,
+    query: VncQuery,
+    config: Arc<Config>,
+) {
     // 4. Construct Proxmox WebSocket URL
     let wss_url = format!(
         "{}/nodes/{}/qemu/{}/vncwebsocket?port={}&vncticket={}",
