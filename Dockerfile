@@ -1,7 +1,7 @@
 # Build Stage
 FROM rust:alpine AS build
 
-RUN apk add --no-cache musl-dev gcc pkgconf openssl-dev
+RUN apk add --no-cache musl-dev gcc
 
 WORKDIR /usr/src/app
 
@@ -15,7 +15,7 @@ RUN cargo build --release
 # Production Stage
 FROM alpine:latest
 
-RUN apk add --no-cache ca-certificates tzdata openssl
+RUN apk add --no-cache ca-certificates tzdata
 
 WORKDIR /app
 
