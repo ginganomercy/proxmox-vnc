@@ -1,62 +1,103 @@
-# 🔌 Proxmox VNC Proxy
+# CBT VNC Proxy — WebSocket VNC Bridge
 
-A high-performance, strictly isolated Microservice dedicated to securing and tunneling VNC (noVNC) WebSocket streams from the Proxmox Custom Dashboard to your internal Proxmox VE servers.
-
-## 🚀 Tech Stack
-
-- **Rust (Edition 2024)**: Systems programming language guaranteeing memory safety and thread safety without a garbage collector. Essential for preventing memory leaks during heavy WebSocket video frame streaming.
-- **Tokio**: The industry-standard asynchronous runtime for Rust. Provides extreme concurrency.
-- **Axum**: A modern, ergonomic web framework built on top of Tokio.
-- **tokio-tungstenite**: Lightweight async WebSocket library for handling the raw byte streams.
-- **reqwest**: Fast HTTP client for acquiring VNC tickets from the Proxmox API.
-- **jsonwebtoken**: For guarding the WebSocket endpoints. Only clients with a valid JWT from the `core-api` can initiate a stream.
+**Rust + Axum high-performance WebSocket relay for Proxmox VM console access**
 
 ---
 
-## 📂 Folder Structure
+## Overview
 
-```text
-vnc-proxy/
-├── .github/workflows/   # CI/CD Deployment pipelines (Trivy & Tailscale)
-├── src/
-│   ├── auth.rs          # JWT parsing and validation logic
-│   ├── config.rs        # Environment variable ingestion (Dotenv)
-│   ├── proxmox.rs       # Communicates with Proxmox API to request VNC tickets
-│   ├── proxy.rs         # The core WebSocket streaming tunnel (Byte forwarder)
-│   └── main.rs          # Axum Router setup and application entrypoint
-├── Dockerfile           # Minimal multi-stage Rust build (distroless/scratch base)
-├── Cargo.toml           # Rust package manifest and dependencies
-└── Cargo.lock           # Dependency lockfile
+The VNC Proxy bridges the browser's WebSocket connection to the Proxmox noVNC WebSocket endpoint, enabling native in-browser VM console access. It:
+
+1. Validates the incoming client JWT token
+2. Fetches a Proxmox VNC ticket from the Core API
+3. Opens a WebSocket connection to the Proxmox node's VNC port
+4. Relays binary frames bidirectionally between client and Proxmox
+
+---
+
+## Tech Stack
+
+| Component | Technology |
+| :--- | :--- |
+| Language | Rust (2024 edition) |
+| HTTP/WS Framework | Axum 0.8.9 |
+| Async Runtime | Tokio 1.52.3 (full features) |
+| JWT Validation | `jsonwebtoken` 10.4.0 |
+| WebSocket Client | `tokio-tungstenite` 0.29.0 (native-tls) |
+| HTTP Client | `reqwest` 0.13.4 |
+| Logging | `tracing` + `tracing-subscriber` |
+
+---
+
+## How It Works
+
+```
+Browser (noVNC JS)
+    │  WebSocket Upgrade (wss://vnc.pbjt.web.id/?token=<JWT>&vmid=<id>)
+    ▼
+CBT VNC Proxy (Rust/Axum)
+    │  1. Validate JWT (HS256 with shared JWT_SECRET)
+    │  2. POST to Core API → /proxmox/nodes/:node/:type/:vmid/vncproxy
+    │  3. Connect to Proxmox wss://<node>:5900/?...
+    │  4. Relay frames bidirectionally
+    ▼
+Proxmox QEMU VNC Server
 ```
 
 ---
 
-## 🛠️ Local Development Setup
+## Environment Variables
 
-1. **Clone the repository:**
-   ```bash
-   git clone https://github.com/ginganomercy/proxmox-vnc.git
-   cd proxmox-vnc
-   ```
-
-2. **Prepare Environment Variables:**
-   ```bash
-   cp .env.example .env
-   # Ensure the PROXMOX_URL and JWT_SECRET match your core-api
-   ```
-
-3. **Run with Cargo:**
-   ```bash
-   cargo run
-   ```
-   *The WebSocket proxy will listen on `ws://localhost:3002/api/vnc`.*
+```env
+JWT_SECRET=<must-match-core-api-secret>
+PROXMOX_HOST=https://proxmox.pbjt.web.id:8006
+PROXMOX_TOKEN_ID=root@pam!mytoken
+PROXMOX_TOKEN_SECRET=<token-secret>
+ALLOWED_ORIGIN=https://cloud-dashboard.pbjt.web.id
+```
 
 ---
 
-## 🔒 CI/CD & Deployment
+## Local Development
 
-This service utilizes an **Enterprise-Grade GitHub Actions Pipeline**:
-1. **Strict Linting**: Gates code quality using `cargo fmt` and `cargo clippy`. Unsafe or unoptimized code will fail the build.
-2. **Docker Build**: Compiles the Rust binary and packages it into a tiny container image (`ghcr.io`).
-3. **DevSecOps**: Scans the Docker image using **Trivy** to ensure zero known CVE vulnerabilities.
-4. **Zero-Trust Deployment**: Automatically deploys the updated container to Docker Swarm via a private **Tailscale** tunnel, ensuring your server remains closed off from the public internet.
+```bash
+cp .env.example .env
+cargo run
+# WebSocket server listening on :3002
+```
+
+## Production Build
+
+```bash
+cargo build --release
+# Binary: target/release/vnc-proxy
+```
+
+## Docker
+
+```bash
+docker build -t ghcr.io/ginganomercy/vnc-proxy:latest .
+docker run --env-file .env -p 3002:3002 ghcr.io/ginganomercy/vnc-proxy:latest
+```
+
+---
+
+## Security
+
+| Control | Implementation |
+| :--- | :--- |
+| **JWT Validation** | Every WebSocket upgrade validates the Bearer token against the shared `JWT_SECRET` |
+| **CORS** | `ALLOWED_ORIGIN` env restricts WebSocket origin to production frontend only |
+| **TLS** | Connections to Proxmox use `native-tls` (vendored) |
+| **No credential storage** | Proxmox VNC tickets are ephemeral — fetched per-session, not stored |
+
+---
+
+## CI/CD
+
+On every push to `main`:
+
+1. **Cargo build check**
+2. **Build & Push** → `ghcr.io/ginganomercy/vnc-proxy:latest`
+3. **Trivy Security Scan** — blocks on CRITICAL CVEs
+4. **Deploy to Swarm** — via Tailscale + SSH → `docker service update --force`
