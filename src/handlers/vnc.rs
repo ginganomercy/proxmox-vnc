@@ -11,8 +11,8 @@ use std::borrow::Cow;
 use std::sync::Arc;
 use tokio_tungstenite::{Connector, tungstenite::protocol::Message as TungsteniteMessage};
 
-use crate::auth::validate_jwt;
-use crate::config::Config;
+use crate::core::auth::validate_jwt;
+use crate::core::config::Config;
 
 #[derive(serde::Deserialize)]
 pub struct VncQuery {

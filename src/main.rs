@@ -1,6 +1,5 @@
-mod auth;
-mod config;
-mod proxy;
+mod core;
+mod handlers;
 
 use std::sync::Arc;
 use tokio::net::TcpListener;
@@ -9,9 +8,9 @@ use tokio::net::TcpListener;
 async fn main() {
     tracing_subscriber::fmt::init();
 
-    let config = Arc::new(config::Config::load());
+    let config = Arc::new(core::config::Config::load());
 
-    let app = proxy::router(config.clone());
+    let app = handlers::vnc::router(config.clone());
 
     let addr = format!("0.0.0.0:{}", config.port);
     let listener = TcpListener::bind(&addr).await.unwrap();
