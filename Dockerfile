@@ -1,7 +1,9 @@
 # Build Stage
-FROM rust:alpine AS build
+FROM rust:1.80-slim-bookworm AS build
 
-RUN apk add --no-cache musl-dev gcc make perl
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends build-essential pkg-config perl && \
+    rm -rf /var/lib/apt/lists/*
 
 WORKDIR /usr/src/app
 
@@ -27,9 +29,11 @@ RUN touch src/main.rs
 RUN cargo build --release
 
 # Production Stage
-FROM alpine:latest
+FROM debian:bookworm-slim
 
-RUN apk add --no-cache ca-certificates tzdata
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends ca-certificates tzdata && \
+    rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
 
