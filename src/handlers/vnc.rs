@@ -124,7 +124,7 @@ async fn handle_socket(
         Ok(stream) => {
             let _ = stream.set_nodelay(true);
             stream
-        },
+        }
         Err(e) => {
             eprintln!("Failed to create TCP stream: {}", e);
             let _ = client_ws.close().await;
