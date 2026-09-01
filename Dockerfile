@@ -1,5 +1,4 @@
-# Build Stage
-FROM rust:1.80-slim-bookworm AS build
+FROM rust:slim-bookworm AS build
 
 RUN apt-get update && \
     apt-get install -y --no-install-recommends build-essential pkg-config perl && \
