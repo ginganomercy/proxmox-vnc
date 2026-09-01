@@ -116,26 +116,10 @@ async fn handle_socket(
         .headers_mut()
         .insert("Authorization", auth_val.parse().unwrap());
 
-    let parsed_url = reqwest::Url::parse(&wss_url).unwrap();
-    let host = parsed_url.host_str().unwrap();
-    let port = parsed_url.port().unwrap_or(8006);
-
-    let tcp_stream = match tokio::net::TcpStream::connect((host, port)).await {
-        Ok(stream) => {
-            let _ = stream.set_nodelay(true);
-            stream
-        }
-        Err(e) => {
-            eprintln!("Failed to create TCP stream: {}", e);
-            let _ = client_ws.close().await;
-            return;
-        }
-    };
-
-    let (proxmox_ws, _) = match tokio_tungstenite::client_async_tls_with_config(
+    let (proxmox_ws, _) = match tokio_tungstenite::connect_async_tls_with_config(
         request,
-        tcp_stream,
         None,
+        true, // disable_nagle is set to true automatically
         Some(connector),
     )
     .await
